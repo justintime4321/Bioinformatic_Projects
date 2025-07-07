@@ -1,0 +1,228 @@
+---
+title: "Final Assessment JH"
+author: "JH"
+date: "2025-02-12"
+output: html_document
+---
+
+```{r}
+
+library(dplyr)
+
+#let's read in the data set set1
+set1_data <- read.table("set1.tsv", sep="\t", header=TRUE)
+set2_data <- read.table("set2.tsv", sep="\t", header=TRUE)
+both_set_data <- read.table("both_sets.tsv", sep="\t", header=TRUE)
+                        
+head(set1_data)
+
+#let's see if there are any duplicates in the gene and cell lines
+
+gene_list_set1 <- unique(set1_data$Gene)
+
+cell_line_set1 <- unique(set1_data$Cell_Line)
+
+gene_list_shared <- unique(both_set_data)
+
+#let's check if there are any missing data from the scores
+missing_bf_score_s1<-mean(is.na(set1_data$Avana_BF))
+
+missing_z_score_s1<-mean(is.na(set1_data$Avana_Z))
+
+missing_z_score_shared_s1 <- mean(is.na(both_set_data$Set1))
+
+missing_z_score_shared_s2 <- mean(is.na(both_set_data$Set2))
+
+print(length(gene_list_set1))
+
+summary(set1_data)
+
+
+```
+
+```{r}
+
+plot(set1_data$Avana_Z, set1_data$Avana_BF)
+```
+
+```{r}
+ggplot(set1_data, aes(x = Avana_Z)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.6) + # alpha for transparency
+  geom_density(fill = "lightgreen", color = "darkgreen", alpha = 0.4) +
+  labs(title = "Histogram and Density of Avana Z-scores Set1",
+       x = "Avana Z-score",
+       y = "Frequency/Density") +
+  theme_bw()
+
+
+ggplot(set2_data, aes(x = Avana_Z)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.6) + # alpha for transparency
+  geom_density(fill = "lightgreen", color = "darkgreen", alpha = 0.4) +
+  labs(title = "Histogram and Density of Avana Z-scores Set2",
+       x = "Avana Z-score",
+       y = "Frequency/Density") +
+  theme_bw()
+
+```
+
+```{r}
+#Now we will create filtered data sets for each set1 and set2 based on the Z-score cutoff of <=5
+
+#we can use the dplyr filter function to filter Z scores 
+
+library(dplyr)
+
+set1_data_filt <- dplyr::filter(set1_data, Avana_Z <=-5)
+
+
+set2_data_filt <- dplyr::filter(set2_data, Avana_Z <=-5)
+
+both_set_data_filt <- dplyr::filter(both_set_data, Set1 <= -5 & Set2 <= -5)
+
+shared_essent_genes_count <- nrow(both_set_data_filt)
+
+#lets see if there are duplicate gnees in each data set
+
+no_genes_set1 <- nrow(set1_data_filt)
+no_unique_genes_set1 <- length(unique(set1_data_filt$Gene))
+
+no_genes_set2 <- nrow(set2_data_filt)
+no_unique_genes_set2 <- length(unique(set2_data_filt$Gene))
+
+print(paste("Number of essential genes in Set 1:", no_genes_set1))
+print(paste("Number of essential genes in Set 2:", no_genes_set2))
+
+#then we can write the data to separate files. 
+write.csv(set1_data_filt, file = "set1_essential_genes.csv", row.names = FALSE)
+write.csv(set2_data_filt, file = "set2_essential_genes.csv", row.names = FALSE)
+write.csv(both_set_data_filt, file="shared_set_data_filt.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+# 1. Remove rows with NA values in Avana_Z
+set1_no_na <- set1_data_filt %>% filter(!is.na(Avana_Z))
+
+# 2. Arrange by Avana_Z in *descending* order (least essential will be at the top)
+set1_least_essential <- dplyr::arrange(set1_data_filt,desc(Avana_Z)) %>% dplyr::slice(1:500)
+
+
+# 3. Save to a file
+write.csv(set1_least_essential, file = "set1_least_essential_genes.csv", row.names = FALSE)
+```
+
+```{r}
+set1_enrich_data <- read.table("enrichment.Process_S1.tsv", header = FALSE, sep = "\t", quote = "", stringsAsFactors = FALSE)
+
+colnames(set1_enrich_data) <- c("term_ID","term_description", "observed_gene_count", "background_gene_count","strength","signal","false_discovery_rate", "matching_proteins_in_your_network_(IDs)", "matching_proteins_in_your_network_(labels)")
+
+set1_enriched_filter <- dplyr::filter(set1_enrich_data, false_discovery_rate <= 0.05)
+```
+
+```{r}
+set2_enrich_data <- read.table("enrichment.Process_S2.tsv", header = FALSE, sep = "\t", quote = "", stringsAsFactors = FALSE)
+
+colnames(set1_enrich_data) <- c("term_ID","term_description", "observed_gene_count", "background_gene_count","strength","signal","false_discovery_rate", "matching_proteins_in_your_network_(IDs)", "matching_proteins_in_your_network_(labels)")
+
+set2_enriched_filter <- dplyr::filter(set1_enrich_data, false_discovery_rate <= 0.05)
+```
+
+```{r}
+set1__non_ess_enrich_data <- read.table("enrichment.Process_S1_NONESS.tsv", header = FALSE, sep = "\t", quote = "", stringsAsFactors = FALSE)
+
+colnames(set1__non_ess_enrich_data ) <- c("term_ID","term_description", "observed_gene_count", "background_gene_count","strength","signal","false_discovery_rate", "matching_proteins_in_your_network_(IDs)", "matching_proteins_in_your_network_(labels)")
+
+set1__non_ess_enrich_data_filter <- dplyr::filter(set1__non_ess_enrich_data, false_discovery_rate <= 0.05)
+```
+
+```{r}
+both_set_enrich_data <- read.table("enrichment.Process_SharedSets.tsv", header= FALSE, sep = "\t", quote = "")
+
+colnames(both_set_enrich_data) <- c("term_ID","term_description", "observed_gene_count", "background_gene_count","strength","signal","false_discovery_rate", "matching_proteins_in_your_network_(IDs)", "matching_proteins_in_your_network_(labels)")
+
+shared_enrich_data_filter <- dplyr::filter(set1__non_ess_enrich_data, false_discovery_rate <= 0.05)
+
+write.csv(shared_enrich_data_filter, file = "shared_sigdb_set.csv", row.names = FALSE)
+
+```
+
+```{r}
+ggplot(both_set_data_filt, aes(x = Set1, y = Set2)) +
+  geom_point() +  # Creates the scatter plot
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "green") + # Add a diagonal line (y=x) for reference
+  labs(title = "Comparison of Z-Scores between Set 1 and Set 2",
+       x = "Z-Score (Set 1)",
+       y = "Z-Score (Set 2)") +
+  theme_bw()  
+
+cor(both_set_data_filt$Set1, both_set_data_filt$Set2)
+```
+
+```{r}
+library(dplyr)
+
+#create a new column in the filtered dataset for the delta abs value of set1-set2
+abs_val_shared_data <- both_set_data_filt %>% mutate(Delta_Abs=abs(Set1-Set2))
+
+#rank the abs difference between data sets in descending order
+ranked_abs_shared_data <- abs_val_shared_data %>% arrange(desc(Delta_Abs))
+
+#then we can export the data set as a csv to research the top 15 delta abs shared genes
+
+write.csv(ranked_abs_shared_data, file = "ranked_abs_shared_data.csv", row.names = FALSE)
+
+```
+
+```{r}
+#now lets read in the biological analysis data from string db of the top delta_abs shared genes
+
+delta_abs_set_enrich_data <- read.table("enrichment.Process_SharedSets.tsv", header= FALSE, sep = "\t", quote = "")
+
+colnames(delta_abs_set_enrich_data) <- c("term_ID","term_description", "observed_gene_count", "background_gene_count","strength","signal","false_discovery_rate", "matching_proteins_in_your_network_(IDs)", "matching_proteins_in_your_network_(labels)")
+
+delta_abs_enrich_data_filter <- dplyr::filter(delta_abs_set_enrich_data, false_discovery_rate <= 0.05)
+
+write.csv(delta_abs_set_enrich_data, file = "delta_abs_enrich_data.csv", row.names = FALSE)
+```
+
+```{r}
+quick_go_anno1 <- read.table("QuickGO-annotations-1.tsv", header= TRUE, sep = "\t", quote = "")
+quick_go_anno2 <- read.table("QuickGO-annotations-2.tsv", header= TRUE, sep = "\t", quote = "")
+quick_go_anno3 <- read.table("QuickGO-annotations-3.tsv", header= TRUE, sep = "\t", quote = "")
+quick_go_anno4 <- read.table("QuickGO-annotations-4.tsv", header= TRUE, sep = "\t", quote = "")
+quick_go_anno5 <- read.table("QuickGO-annotations-5.tsv", header= TRUE, sep = "\t", quote = "")
+quick_go_anno6 <- read.table("QuickGO-annotations-6.tsv", header= TRUE, sep = "\t", quote = "")
+
+#create gene list empty array 
+back_reference_list <- list()
+
+#add background genes from each file to the gene list for background reference genes
+anno_1_genes <- unique(dplyr::select(quick_go_anno1, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_1_genes)
+
+anno_2_genes <- unique(dplyr::select(quick_go_anno2, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_2_genes)
+
+anno_3_genes <- unique(dplyr::select(quick_go_anno3, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_3_genes)
+
+anno_4_genes <- unique(dplyr::select(quick_go_anno4, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_4_genes)
+
+anno_5_genes <- unique(dplyr::select(quick_go_anno5, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_5_genes)
+
+anno_6_genes <- unique(dplyr::select(quick_go_anno6, SYMBOL))
+
+back_reference_list <- dplyr::mutate(anno_6_genes)
+
+write.csv(back_reference_list, file = "back_reference_list.csv", row.names = FALSE)
+
+```
+
