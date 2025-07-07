@@ -1,0 +1,687 @@
+
+---
+title: "Gene Expression Analysis R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. 
+When you execute code within the notebook, the results appear beneath the code. 
+
+#Your Task Instructions
+Work through the code chunks in the following notebook to read in and analyse your processed data on gene expression changes in response to stress in potato.
+There are 16 Questions in this notebook.
+Follow the instructions for each code chunk, adding code where specified and using the exact variable names supplied. 
+Note that all variable names are in lower case letters.
+You should load the libraries to get started as instructed below, but you should complete all tasks without loading any additional libraries.
+
+#IMPORTANT
+1) For some of the questions, you will see ottr::check cells. It is important that you do NOT comment out or modify those cells because they will be used for marking your work.
+You will not be able to run the ottr::check cells, so please do ignore them.
+2) If you have used any commands such as View() that open up a graphical output in a new tab, please COMMENT OUT these lines of code BEFORE submitting your work.
+3) If you have used rm(list=ls()) in your code, please comment this line out before submitting your work.
+4) Please check all your code chunks run successfully before submitting your work.
+
+#LOADING LIBRARIES TO GET STARTED
+First, run the following chunk to load the necessary libraries (no other libraries will be required).
+
+```{r}
+library(testthat)
+library(assertthat)
+library(stringr)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(ggvenn)
+```
+
+#Q1) READING IN THE FULL GENE EXPRESSION DATASET
+
+Add code to the chunk below that does the following:
+* Reads in the data file you created using Python called `all_VarX_TwoTimePoints.csv` and assigns it to a data frame called `var_x_all`
+* Reads in the data file you created using Python called `all_VarY_TwoTimePoints.csv` and assigns it to a data frame called `var_y_all`
+# 4 marks / 30 (total 4 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+#clear R studio env
+
+#rm(list = ls(all.names = TRUE)) 
+
+#create data frames for each variety
+
+var_x_all <- read_csv("/rds/homes/j/jxh1638/module-1-intro-to-biology-and-programming/Unit8/Matrix/all_VarX_TwoTimePoints.csv")
+var_y_all <- read_csv("/rds/homes/j/jxh1638/module-1-intro-to-biology-and-programming/Unit8/Matrix/all_VarY_TwoTimePoints.csv")
+
+#unfortunately the reader originally moved the column names down to row 1 so we need
+#to name the column names manually in the code below
+
+colnames(var_x_all) <- c("gene_name", "VarXCRep.1", "VarXCRep.2", "VarXCRep.3", "VarX1Rep.1", "VarX1Rep.2", "VarX1Rep.3")
+colnames(var_y_all) <- c("gene_name", "VarYCRep.1", "VarYCRep.2", "VarYCRep.3", "VarY1Rep.1", "VarY1Rep.2", "VarY1Rep.3")
+```
+
+```{r}
+. = ottr::check("tests/q1.R")
+```
+
+#Q2) HOW MANY GENES ARE IN THE WHOLE DATASET?
+
+Add code to the chunk below that does the following:
+* Find out how many genes are in your dataset and assign the result to a variable called `num_genes`.
+# 1 mark / 30 (total 5 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+#visualize the data using str function 
+str(var_x_all)
+str(var_y_all)
+
+#the number of rows typically indicates the number of genes for each variety
+num_row_x <- nrow(var_x_all)
+num_row_y <- nrow(var_y_all)
+
+#the total number of rows for both varieties
+#are both numbers added together
+num_genes <- num_row_x + num_row_y
+
+
+```
+
+```{r}
+. = ottr::check("tests/q2.R")
+```
+
+#Q3) READING IN THE DATA ON DIFFERENTIALLY EXPRESSED GENES (DEGs)
+
+Add code to the chunk below that does the following:
+* Reads in the data file you created using Python called `Leaf_DEGs_VarX.csv` and assigns it to a data frame called `var_x_degs`
+* Reads in the data file you created using Python called `Leaf_DEGs_VarY.csv` and assigns it to a data frame called `var_y_degs`
+# 4 marks / 30 (total 9 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#create data freames for each variety of deg
+var_x_degs <- read_csv("/rds/homes/j/jxh1638/module-1-intro-to-biology-and-programming/Unit8/Matrix/Leaf_DEGs_VarX.csv", "r")
+var_y_degs <- read_csv("/rds/homes/j/jxh1638/module-1-intro-to-biology-and-programming/Unit8/Matrix/Leaf_DEGs_VarY.csv", "r")
+
+
+#assign column names
+colnames(var_x_degs) <- c("gene_name", "log2FoldChange", "padj", "Athaliana_geneID", "Gene_Function", "control_replicate_1
+", "control_replicate_2", "control_replicate_3","stress_replicate_1","stress_replicate_2","stress_replicate_3")
+colnames(var_y_degs) <- c("gene_name", "log2FoldChange", "padj", "Athaliana_geneID", "Gene_Function", "control_replicate_1
+", "control_replicate_2", "control_replicate_3","stress_replicate_1","stress_replicate_2","stress_replicate_3")
+
+```
+
+```{r}
+. = ottr::check("tests/q3.R")
+```
+
+
+# Q4) INVESTIGATE THE DISTRIBUTION OF EXPRESSION VALUES FOR ALL GENES IN EACH SAMPLE (Variety X).
+
+First, we have to recognise that our data is currently in WIDE FORMAT, with a column for each variable (in this case, each sample).
+However, it is much easier, as we have seen in previous practicals, to have our data in LONG FORMAT, with a column for each variable type and column for the values.
+
+Run the following cell to use the `tidyr` long_format() to transform your `var_x_all` data frame into a long format. 
+```{r}
+var_x_all.long <- pivot_longer(var_x_all,cols=VarXCRep.1:VarX1Rep.3,names_to = "sample", values_to = "expression")
+#View(var_x_all.long)
+```
+
+Now you have your data in long format:
+Add code to the chunk below that does the following:
+* Create a suitable plot to look at the distribution of expression values for all the genes as a function of the sample, for Variety X.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#we will now create a boxplot that
+#graphs the expression values for each sample
+#geom violin for me is easier to view this data in a graph
+
+#I used the position_jitter because originally the expression values
+#were too close together on the graph and could not be interpreted well, 
+#unfortunately I tried different methods of scaling the Y axis and 
+#I could not figure out how to scale it to prevent it 
+#from being distorted
+
+ggplot(var_x_all.long, aes(x = sample, y = expression)) +
+  geom_violin() + geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Distribution of Expression Values for all genes Variety X",
+       x = "Sample",
+       y = "Expression Value")
+
+
+#from this graph, we can see varx controls have higher overall gene expression values than the stress variables
+```
+
+# Q5) INVESTIGATE THE DISTRIBUTION OF EXPRESSION VALUES FOR ALL GENES IN EACH SAMPLE (Variety Y).
+
+Now you can repeat the above process for Variety Y.
+Add code to the chunk below that does the following:
+* Use the `tidyr` long_format() to transform your `var_y_all` data frame into a long format and call the data frame `var_y_all.long`. 
+* Create a suitable plot to look at the distribution of expression values for all the genes as a function of the sample, for Variety Y.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#convert y data frame to string
+var_y_all.long <- pivot_longer(var_y_all,cols=VarYCRep.1:VarY1Rep.3,names_to = "sample", values_to = "expression")
+
+#we will now create a boxplot that
+#graphs the expression values for each sample
+ggplot(var_y_all.long, aes(x = sample, y = expression)) +
+  geom_violin() + geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Distribution of Expression Values for all genes Variety Y",
+       x = "Sample",
+       y = "Expression Value")
+
+
+#from this graph we can see that the stress variety expression values are slightly with replicate 3 being the highest
+```
+
+
+#Q6) INVESTIGATE THE DISTRIBUTION OF EXPRESSION VALUES FOR THE DEGs IN EACH SAMPLE (Variety X).
+
+Add code to the chunk below that does the following:
+* Use the `tidyr` long_format() to transform your `var_x_degs` data frame into a long format and call the data frame `var_x_degs.long`. 
+* Create a suitable plot to look at the distribution of expression values for DEGs as a function of the sample, for Variety X.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+
+#unfortunately the data frame had the he var_x_degs had headers duplicated to rows 1 and 2, so I had to skip the first 2 rows (headers) and select columns 1, 6, and 7 in order to have the data in a good format for R to use 
+var_x_degs <- var_x_degs[3:nrow(var_x_degs), 1:ncol(var_x_degs)]
+
+#when trying to pivot had an error in which there were non-integer characters
+#in the data set, I used summary() and printing was used to figure out
+#that there was a new line \ in the control_replicate_1 column 6
+#so we will remove it from the column name
+colnames(var_x_degs)[6] <- gsub("\n", "", colnames(var_x_degs)[6])
+
+#pivot the dataset in long form such that the data can be easily used by R for plotting and analysis
+var_x_degs.long <- pivot_longer(var_x_degs, 
+                                cols = control_replicate_1:stress_replicate_3,
+                                names_to = "sample", 
+                                values_to = "expression")
+
+# Plot using ggplot
+ggplot(var_x_degs.long, aes(x = sample, y = expression)) +
+  geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Distribution of Differential Expression Values for Variety X",
+       x = "Sample",
+       y = "Expression") +
+  theme_classic()
+
+#from the graph we can see that for the most part, the heights of the distributions are roughly the same which is good. 
+#there is a difference in the distribution density in certain areas, for example in controls there is a bigger density of expression values
+#in the middle of replicate 1 compared to the other replicates as well as the bottom of replcate 1.
+```
+
+#Q7) INVESTIGATE THE DISTRIBUTION OF EXPRESSION VALUES FOR THE DEGs IN EACH SAMPLE (Variety Y).
+
+Add code to the chunk below that does the following:
+* Use the `tidyr` long_format() to transform your `var_y_degs` data frame into a long format and call the data frame `var_y_degs.long`. 
+* Create a suitable plot to look at the distribution of expression values for DEGs as a function of the sample, for Variety Y.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+# skip the first 2 rows (headers) and select columns 1, 6, and 7 
+var_y_degs <- var_y_degs[3:nrow(var_y_degs), 1:ncol(var_y_degs)]
+
+
+#remove newline character from column name
+colnames(var_y_degs)[6] <- gsub("\n", "", colnames(var_y_degs)[6])
+
+#pivot data
+var_y_degs.long <- pivot_longer(var_y_degs, 
+                                cols = control_replicate_1:stress_replicate_3,
+                                names_to = "sample", 
+                                values_to = "expression")
+
+#plot using ggplot
+ggplot(var_y_degs.long, aes(x = sample, y = expression)) +
+  geom_violin() + geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Distribution of Differential Expression Values for Variety Y",
+       x = "Sample",
+       y = "Expression") +
+  theme_classic()
+
+#from the graph below we can see that the distribution is the same heights for all variables.
+#however control replicate 1 has a increased expression density in the middle compared to the two others as well. 
+```
+
+#Q8) HOW MANY DIFFERENTIALLY EXPRESSED GENES ARE THERE IN EACH VARIETY?
+
+Add code to the chunk below that does the following:
+* Find out how many duplicate Soltu gene names there are in the `var_x_degs` data frame and assign the result to a variable called `var_x_dup`
+* Find out how many duplicate Soltu gene names there are in the `var_y_degs` data frame and assign the result to a variable called `var_y_dup`
+
+# 2 marks / 30 (total 11 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#duplicates for var x degs
+var_x_dup <- sum(duplicated(var_x_degs$gene_name))
+
+#duplicates for var y degs
+var_y_dup <- sum(duplicated(var_y_degs$gene_name))
+
+```
+
+```{r}
+. = ottr::check("tests/q8.R")
+```
+
+
+#Q9) INVESTIGATE IF THE SAME OR DIFFERENT GENES ARE DIFFERENTIALLY EXPRESSED IN THE TWO VARIETIES.
+
+Add code to the chunk below that does the following:
+* Create a suitable plot to look at the overlap in the DEGs between the two Varieties.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+library(venn)
+
+#create vars for unique gene_names for each variety
+var_x_genes <- unique(var_x_degs$gene_name)
+var_y_genes <- unique(var_y_degs$gene_name)
+
+#venn diagram to compare unique genes 
+venn_plot <- venn(list("Variety X" = var_x_genes, "Variety Y" = var_y_genes))
+print(venn_plot)
+
+#we can see from the diagram below that variety x has alot more unique genes than variety y
+```
+
+#Q10) SEPARATE OUT THE UP- AND DOWN- REGULATED DEGs (BETWEEN STRESS AND CONTROL CONDITION).
+
+By looking at the gene expression data in the `var_x_degs` and `var_y_degs` data frames, you can see that some genes have a positive log 2 fold change and others have a negative log 2 fold change.
+
+Add code to the chunk below that does the following:
+* Create a data frame called `var_x_degs.up` containing only genes that are upregulated in Stress Treatment compared to control in Variety X.
+* Create a data frame called `var_x_degs.down` containing only genes that are downregulated in Stress Treatment compared to control in Variety X.
+* Create a data frame called `var_y_degs.up` containing only genes that are upregulated in Stress Treatment compared to control in Variety Y.
+* Create a data frame called `var_y_degs.down` containing only genes that are downregulated in Stress Treatment compared to control in Variety Y.
+# 4 marks / 30 (total 15 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#we can use the filter function for each variety 
+#by filtering logs and stress samples in each corresponding column
+
+#upreg for log2FoldChange > 0 
+#down reg for log2FoldChange < 0
+
+var_x_degs.up <- filter(var_x_degs.long, 
+                         log2FoldChange > 0 & 
+                         grepl("stress", sample))
+
+var_x_degs.down <- filter(var_x_degs.long, log2FoldChange <0 & grepl("stress",sample))
+
+var_y_degs.up <- filter(var_y_degs.long, 
+                         log2FoldChange > 0 & 
+                         grepl("stress", sample))
+
+var_y_degs.down <- filter(var_y_degs.long, log2FoldChange <0 & grepl("stress",sample))
+
+```
+
+```{r}
+. = ottr::check("tests/q10.R")
+```
+
+#Q11) INVESTIGATE THE FOLD CHANGE IN GENE EXPRESSION FOR THE DEGs, BETWEEN STRESS AND CONTROL CONDITION.
+
+Add code to the chunk below that does the following:
+* Create a box plot to show the distribution of log2 fold change for all DEGs by variety. Hint: the base R boxplot() command and the abs() function could be helpful here.
+* Create a box plot to show the distribution of log2 fold change for upregulated DEGs by variety. Hint: the base R boxplot() command could be helpful here.
+* Create a box plot to show the distribution of log2 fold change for downregulated DEGs by variety. Hint: the base R boxplot() command could be helpful here.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#first filter all the data for each vareity using the degs data
+
+all_data_x <- filter(var_x_degs.long, !is.na(log2FoldChange)) 
+all_data_y <- filter(var_y_degs.long, !is.na(log2FoldChange))
+
+#create varx and y combined data by using the rbind and mutate functions
+combined_data <- rbind(all_data_x %>% mutate(dataset = "Variety X"), 
+                       all_data_y %>% mutate(dataset = "Variety Y"))
+
+#next we need to convert the log2FoldChange into numeric 
+#I was having error earlier from not being able to plot the data 
+#due to this
+combined_data$log2FoldChange <- as.numeric(combined_data$log2FoldChange)
+
+#box plot for the combined data set
+boxplot(log2FoldChange ~ dataset, data = combined_data, 
+        main = "Distribution of log2 fold change for all DEGs by variety",
+        xlab = "Variety", ylab = "log2 Fold Change")
+
+#-------------------------------------------------------------------------
+#upreg code, repeat similar process for upregulated genes
+#by variety x and y 
+
+#filter log2FoldChange 
+up_data_x <- filter(var_x_degs.up, !is.na(log2FoldChange))
+up_data_y <- filter(var_y_degs.up, !is.na(log2FoldChange))
+
+
+#combine data
+combined_up_data <- rbind(up_data_x %>% mutate(dataset = "Variety X"), 
+                       up_data_y %>% mutate(dataset = "Variety Y"))
+#numeric conversion
+combined_up_data$log2FoldChange <- as.numeric(combined_up_data$log2FoldChange)
+
+#plot
+boxplot(log2FoldChange ~ dataset, data = combined_up_data, 
+        main = "Distribution of log2 fold change for upregulated DEGs by variety",
+        xlab = "Variety", ylab = "log2 Fold Change")
+
+#---------------------------------------------------------------------------
+#downreg code, repeat similar process for upregulated genes
+#by variety x and y 
+
+#filter log2FoldChange 
+down_data_x <- filter(var_x_degs.down, !is.na(log2FoldChange))
+down_data_y <- filter(var_y_degs.down, !is.na(log2FoldChange))
+
+#combine data
+combined_down_data <- rbind(down_data_x %>% mutate(dataset = "Variety X"), 
+                       down_data_y %>% mutate(dataset = "Variety Y"))
+#numeric conversion
+combined_down_data$log2FoldChange <- as.numeric(combined_down_data$log2FoldChange)
+
+#plot
+boxplot(log2FoldChange ~ dataset, data = combined_down_data, 
+        main = "Distribution of log2 fold change for down regulated DEGs by variety",
+        xlab = "Variety", ylab = "log2 Fold Change")
+
+
+#from the graph we can observe:
+#for all degs by variety:
+#var x has higher overall log2foldchange values and more points outside the box
+#in lower and upper ranges
+#while var y has a lower log2foldchange (lower value density)
+
+#for upreg degs by variety
+#var x has higher overall log2foldchange values,
+#with more points than var y in the upper log2foldchange range
+#while var y has a lower log2foldchange range (lower value density)
+
+#for down reg degs by variety
+# var x has higher overall log2fold values and density
+#compared to var y
+```
+
+#Q12) INVESTIGATE THE FUNCTIONS OF THE DIFFERENTIALLY EXPRESSED (UPREGULATED) GENES WITH THE LOWEST FOLD CHANGE
+
+Add code to the chunk below that does the following:
+* Find out the function of the bottom most upregulated gene in Variety X (lowest fold change) and assign the result to variable called `bottom_gene.x`.
+* Find out the function of the bottom most upregulated gene in Variety Y (lowest fold change) and assign the result to variable called `bottom_gene.y`.
+# 5 marks / 30 (total 20 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+
+#find the index of the lowest fold change upregulated gene in var x
+index_bottom_upregulated_x <- which.min(var_x_degs.up$log2FoldChange)
+
+#extract the value of the lowest fold change upregulated gene in var x
+bottom_gene.x <- var_x_degs.up$Gene_Function[index_bottom_upregulated_x]
+
+#find the index of the lowest fold change upregulated gene in var y
+index_bottom_upregulated_y <- which.min(var_y_degs.up$log2FoldChange)
+
+#extract the value of the lowest fold change upregulated gene in var y
+bottom_gene.y <- var_y_degs.up$Gene_Function[index_bottom_upregulated_y]
+
+```
+
+```{r}
+. = ottr::check("tests/q12.R")
+```
+
+
+#Q13) INVESTIGATE THE BEHAVIOUR OF THE BIOLOGICAL REPLICATES FOR THE DEGs in Variety X IN THE TREATMENT TIME POINT.
+
+Add code to the chunk below that does the following:
+* Create a set of scatterplots to visually inspect how well the different replicates agree/correlate for the DEGs in Variety X in the treatment time point
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#we first have to extract stress replicate data
+#create replicate columns by filtering the data
+#specifically for the samples by pattern stress_replicate
+#and also the log2FoldChange
+
+stress_reps <- c("stress_replicate_1", "stress_replicate_2", "stress_replicate_3")
+var_x_degs_plot <- var_x_degs.long[, c("log2FoldChange", "sample")]
+
+#create pattern for all replicates (separated by '|')
+replicate_pattern <- paste(stress_reps, collapse="|") 
+#filter data 
+stress_degs_x <- filter(var_x_degs_plot, grepl(replicate_pattern, sample))
+
+#create scatter plot
+ggplot(stress_degs_x, aes(x = sample, y = log2FoldChange)) +
+  geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Scatterplots of log2FoldChange vs. sample for Variety X DEGs at Treatment Time Point",
+       x = "Sample",
+       y = "log2FoldChange")
+
+#from the graph we can see that the data for the most part agrees with eachother,
+#since the height of the distribution is similar and there are not big spots
+#in which there is a large density of data compared to other replicates
+
+
+#I was curious and the data graphed
+#is not detailed enough to make conclusions on data correlation
+#so I decided to do a pearson correlation method
+#this measures the strength of the linear relationship between two variables
+#the more positive the value the more likely the data agrees with eachother 
+#and vice verso for the negative values.
+
+
+#first convert log2FoldChange to numeric
+stress_degs_x$log2FoldChange <- as.numeric(stress_degs_x$log2FoldChange)
+
+#then we must create a matrix with log2FoldChange values for each stress replicate
+stress_mat <- matrix(stress_degs_x$log2FoldChange, ncol = length(stress_reps))
+
+#next, calculate the correlation matrix by using the pearson method
+correlation_matrix <- cor(stress_mat, method="pearson")
+
+#print the results
+print(correlation_matrix)
+
+#from the results we can see that each replicate compared to eachother agrees with eachother
+#rep 1 weakly disagrees with 2 or 3 
+#rep 2 weakly agrees with 3
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+```
+
+#Q14) INVESTIGATE THE BEHAVIOUR OF THE BIOLOGICAL REPLICATES FOR THE DEGs in Variety X IN THE CONTROL TIME POINT.
+
+Add code to the chunk below that does the following:
+* Create a set of scatterplots to visually inspect how well the different replicates agree/correlate for the DEGs in Variety X in the control time point.
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+
+#we first have to extract control replicate data
+#create replicate columns by filtering the data
+#specifically for the samples by pattern control_replicate
+#and also the log2FoldChange
+
+control_reps <- c("control_replicate_1", "control_replicate_2", "control_replicate_3")
+var_x_degs_plot <- var_x_degs.long[, c("log2FoldChange", "sample")]
+
+#create pattern for all replicates (separated by '|')
+replicate_pattern <- paste(control_reps, collapse="|")  # Create pattern for all replicates (separated by '|')
+
+#filter data
+control_degs_x <- filter(var_x_degs_plot, grepl(replicate_pattern, sample))
+
+#plot scatter plot
+ggplot(stress_degs_x, aes(x = sample, y = log2FoldChange)) +
+  geom_point(position = position_jitter(width = 0.2)) +
+  labs(title = "Scatterplots of log2FoldChange vs. sample for Variety X DEGs at Control Time Point",
+       x = "Sample",
+       y = "log2FoldChange")
+
+#the graphs show that the control vars have a very different log2FoldChange 
+#density pattern than stress. Also there is more density of values
+#right above 0 than below 0 log2FoldChange
+
+#repeat pearson method of correlation
+#convert log2FoldChange to numeric
+control_degs_x$log2FoldChange <- as.numeric(stress_degs_x$log2FoldChange)
+
+#then we must create a matrix with log2FoldChange values for each control replicate
+control_mat <- matrix(control_degs_x$log2FoldChange, ncol = length(control_reps))
+
+#calculate the correlation matrix
+correlation_matrix <- cor(control_mat, method="pearson")
+
+#print the results
+print(correlation_matrix)
+
+#the control results state
+
+#rep 1 weakly disagrees with 2 
+#and weakly disagrees with 3 
+
+#rep 2 weakly agrees with 3
+```
+
+#Q15) COMPARE THE MEAN EXPRESSION IN TREATMENT VERSUS CONTROL REPLICATES FOR EACH DEG.
+
+Add code to the chunk below that does the following:
+* Modify your data frame `var_x_degs` to include two new (additional) columns as follows:
+* The first new column should be named `control_mean` and contain the mean expression value for the three control replicates.
+* The second new column should be named `stress_mean` and contain the mean expression value for the three stress treatment replicates.
+# 6 marks / 30 (total 26 so far).
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+
+#we shold separate the control and stress samples first
+control_samples <- var_x_degs.long[grep("control_replicate", var_x_degs.long$sample), ]
+stress_samples <- var_x_degs.long[grep("stress_replicate", var_x_degs.long$sample), ]
+
+#I used this to check if there was missing data, since earlier there were errors
+#on data processing 
+#summary(control_samples$expression)
+#summary(stress_samples$expression)
+
+#I wanted to check if the data is numeric or not 
+#and I converted that data to numeric below
+#class(control_samples$expression)  # Should be "numeric"
+#class(stress_samples$expression)  # Should be "numeric"
+
+#I converted the expression values to numeric
+if (class(control_samples$expression) != "numeric") {
+  control_samples$expression <- as.numeric(control_samples$expression)  # Handle conversion errors
+}
+if (class(stress_samples$expression) != "numeric") {
+  stress_samples$expression <- as.numeric(stress_samples$expression)  # Handle conversion errors
+}
+
+#then calculate mean expression for control and stress vars
+control_mean <- mean(control_samples$expression)
+stress_mean <- mean(stress_samples$expression)
+
+#add empty columns to place means into data frame
+var_x_degs.long$control_mean <- NA
+var_x_degs.long$stress_mean <- NA
+
+#assigned control and stress means to the columns
+var_x_degs.long$control_mean[grep("control_replicate", var_x_degs.long$sample)] <- control_mean
+var_x_degs.long$stress_mean[grep("stress_replicate", var_x_degs.long$sample)] <- stress_mean
+
+
+```
+
+```{r}
+. = ottr::check("tests/q15.R")
+```
+
+
+#Q16) PRIORITISE GENES OF INTEREST FOR FURTHER INVESTIGATION.
+
+Add code to the chunk below that does the following:
+* Create a data frame called `var_y_degs.up.big` containing only genes in Variety y that are upregulated in Stress Treatment compared to control, have at least an 2 fold absolute change in expression and have a p value less than 1e-06. *Hint: remember you are dealing with log 2 fold change. 
+# 4 marks / 30 (total 30 so far).
+
+
+
+```{r}
+################## ADD YOUR CODE UNDER THIS LINE #######
+
+#first I checked the structure and summary of the padj column
+# str(var_y_degs.up$padj)
+# summary(var_y_degs.up$padj)
+
+#convert padj values to numeric (I was having nonnumeric errors earlier)
+var_y_degs.up$padj <- as.numeric(var_y_degs.up$padj)
+
+#convert log2FoldChange to numeric
+var_y_degs.up$log2FoldChange <- as.numeric(var_y_degs.up$log2FoldChange)
+
+#then filter genes with at least a 2-fold absolute change in expression
+var_y_degs.up.big <- var_y_degs.up[abs(var_y_degs.up$log2FoldChange) >= 1, ]
+
+#filter genes with a padj value less than 1e-6
+var_y_degs.up.big <- var_y_degs.up.big[var_y_degs.up.big$padj < 1e-6, ]
+
+#next display the resulting data frame
+print(var_y_degs.up.big)
+
+
+
+
+
+
+```
+
+```{r}
+. = ottr::check("tests/q16.R")
+```
+
+Perhaps these genes you have extracted could be important candidates for further analysis!
+
+END OF ASSESSMENT.
+
+
+
+
+
+
